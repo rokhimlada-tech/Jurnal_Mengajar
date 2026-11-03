@@ -37,7 +37,6 @@ async function init(){const b=await call('boot');S=b.sekolah;G=b.guru;M=b.mapel;
 function loginView(){$('#app').innerHTML=`<div class="card" id="login"><h2>Masuk</h2>
 <label>Masuk sebagai</label><select id="r" onchange="$('#uw').style.display=this.value=='guru'?'':'none'"><option value="guru">Guru</option><option value="kepsek">Kepala Sekolah</option><option value="admin">Admin</option></select>
 <div id="uw"><label>Username (NIP)</label><input id="u"></div><label>Password</label><input id="p" type="password">
-<p><small>Default: password guru = NIP; kepala sekolah <b>kepsek123</b>; admin <b>admin123</b>. Segera ganti di sheet "Sekolah".</small></p>
 <button onclick="doLogin()">Masuk</button></div>`}
 async function doLogin(){const role=$('#r').value,pw=$('#p').value;const r=await call('login',{role,u:$('#u').value,pw});
  if(!r.ok)return alert('Login gagal');AU={role,pw};$('#out').style.display='';
