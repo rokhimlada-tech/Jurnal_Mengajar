@@ -17,6 +17,7 @@ button.s{background:#6b7a8c}button.d{background:#c0392b}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid var(--b);padding:5px;text-align:left;vertical-align:top}th{background:#e8eef6}
 .w{overflow-x:auto}.ok{color:#188038;font-weight:600}.wt{color:#b36b00;font-weight:600}
 #login{max-width:380px;margin:60px auto}
+.pw{position:relative}.pw input{padding-right:40px}.eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;user-select:none;font-size:18px}
 </style></head><body>
 <header><img id="lg" style="display:none"><h1>JURNAL MENGAJAR <small id="sn"></small></h1><button class="s" id="out" style="display:none" onclick="location.reload()">Keluar</button></header>
 <main id="app"></main>
@@ -36,7 +37,7 @@ async function init(){const b=await call('boot');S=b.sekolah;G=b.guru;M=b.mapel;
  if(S.logo){$('#lg').src=S.logo;$('#lg').style.display=''}$('#sn').textContent=S.nama?'- '+S.nama:'';loginView()}
 function loginView(){$('#app').innerHTML=`<div class="card" id="login"><h2>Masuk</h2>
 <label>Masuk sebagai</label><select id="r" onchange="$('#uw').style.display=this.value=='guru'?'':'none'"><option value="guru">Guru</option><option value="kepsek">Kepala Sekolah</option><option value="admin">Admin</option></select>
-<div id="uw"><label>Username (NIP)</label><input id="u"></div><label>Password</label><input id="p" type="password">
+<div id="uw"><label>Username (NIP)</label><input id="u"></div><label>Password</label><div class="pw"><input id="p" type="password"><span class="eye" title="Tampilkan/sembunyikan" onclick="const i=$('#p');const h=i.type=='password';i.type=h?'text':'password';this.textContent=h?'🙈':'👁'">👁</span></div>
 <button onclick="doLogin()">Masuk</button></div>`}
 async function doLogin(){const role=$('#r').value,pw=$('#p').value;const r=await call('login',{role,u:$('#u').value,pw});
  if(!r.ok)return alert('Login gagal');AU={role,pw};$('#out').style.display='';
