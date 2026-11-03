@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JURNAL MENGAJAR</title>
+<style>
+:root{--p:#1e5fa8;--bg:#f3f6fa;--c:#fff;--t:#1d2733;--b:#d5dde8}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--t)}
+header{background:var(--p);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px}
+header img{height:38px}header h1{font-size:18px;margin:0;flex:1}
+main{max-width:1000px;margin:16px auto;padding:0 12px}
+.card{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:13px;margin:8px 0 3px;font-weight:600}
+input,select,textarea{width:100%;padding:8px;border:1px solid var(--b);border-radius:6px;font:inherit}
+textarea{min-height:60px}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px}
+button{background:var(--p);color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer;font:inherit;margin:4px 4px 0 0}
+button.s{background:#6b7a8c}button.d{background:#c0392b}
+.tabs button{background:#fff;color:var(--p);border:1px solid var(--p)}.tabs button.on{background:var(--p);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid var(--b);padding:5px;text-align:left;vertical-align:top}th{background:#e8eef6}
+.w{overflow-x:auto}.ok{color:#188038;font-weight:600}.wt{color:#b36b00;font-weight:600}
+#login{max-width:380px;margin:60px auto}
+</style></head><body>
+<header><img id="lg" style="display:none"><h1>JURNAL MENGAJAR <small id="sn"></small></h1><button class="s" id="out" style="display:none" onclick="location.reload()">Keluar</button></header>
+<main id="app"></main>
+<script>
+const $=s=>document.querySelector(s);let S={},G=[],M=[],U=null,AU={};
+const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// GANTI dengan URL Web App Apps Script Anda (berakhiran /exec)
+const API='https://script.google.com/macros/s/AKfycbwOG8fHKl1cBhBLinhyaHv3YGZatzRlu2tG8mix9ypCNZnI2XdYK7-eq1BiDojHZYVFng/exec';
+const call=async(a,p)=>{try{const r=await(await fetch(API,{method:'POST',body:JSON.stringify({a,p,au:AU})})).json();
+ if(r.error)throw new Error(r.error);return r.data}catch(e){alert('Gagal: '+e.message);throw e}};
+const HARI=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],TUGAS=['Guru Kelas','Guru Mapel','Guru Kelas Fase A','Guru Kelas Fase B','Guru Kelas Fase C'];
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const hariOf=d=>HARI[new Date(d+'T00:00:00').getDay()];
+const kelasList=()=>String(S.kelas||'1,2,3,4,5,6').split(',').map(x=>x.trim()).filter(Boolean);
+const opt=(a,sel)=>a.map(x=>`<option ${x==sel?'selected':''}>${esc(x)}</option>`).join('');
+async function init(){const b=await call('boot');S=b.sekolah;G=b.guru;M=b.mapel;
+ if(S.logo){$('#lg').src=S.logo;$('#lg').style.display=''}$('#sn').textContent=S.nama?'- '+S.nama:'';loginView()}
+function loginView(){$('#app').innerHTML=`<div class="card" id="login"><h2>Masuk</h2>
+<label>Masuk sebagai</label><select id="r" onchange="$('#uw').style.display=this.value=='guru'?'':'none'"><option value="guru">Guru</option><option value="kepsek">Kepala Sekolah</option><option value="admin">Admin</option></select>
+<div id="uw"><label>Username (NIP)</label><input id="u"></div><label>Password</label><input id="p" type="password">
+<p><small>Default: password guru = NIP; kepala sekolah <b>kepsek123</b>; admin <b>admin123</b>. Segera ganti di sheet "Sekolah".</small></p>
+<button onclick="doLogin()">Masuk</button></div>`}
+async function doLogin(){const role=$('#r').value,pw=$('#p').value;const r=await call('login',{role,u:$('#u').value,pw});
+ if(!r.ok)return alert('Login gagal');AU={role,pw};$('#out').style.display='';
+ if(role=='guru'){U=r.guru;guruView()}else if(role=='kepsek')kepsekView();else adminView()}
+
+// ---------- Kehadiran ----------
+function hadirBox(peran,nama){return `<div class="card"><b>Daftar Hadir ${peran}: ${esc(nama)} (${today()})</b><div class="g">
+<div><label>Status</label><select id="hs" onchange="hChg()"><option>Hadir</option><option>Tidak Hadir</option></select></div>
+<div id="ha" style="display:none"><label>Alasan</label><select id="hl" onchange="hChg()">${opt(['Sakit','Ijin','TKS (Tanpa Keterangan Sah)','Cuti','Keperluan Lain'])}</select></div>
+<div id="hk" style="display:none"><label>Keterangan</label><input id="hn"></div></div>
+<button onclick="saveHadir('${peran}','${esc(nama)}')">Simpan Kehadiran</button></div>`}
+function hChg(){const t=$('#hs').value!='Hadir';$('#ha').style.display=t?'':'none';$('#hk').style.display=t&&$('#hl').value=='Keperluan Lain'?'':'none'}
+async function saveHadir(peran,nama){const t=$('#hs').value!='Hadir';await call('saveHadir',{tgl:today(),peran,nama,status:$('#hs').value,alasan:t?$('#hl').value:'',ket:t&&$('#hl').value=='Keperluan Lain'?$('#hn').value:''});alert('Kehadiran tersimpan')}
+
+// ---------- Guru ----------
+function guruView(){const kl=kelasList(),def=String(U.kelas||'').split(',')[0].trim();
+$('#app').innerHTML=hadirBox('Guru',U.nama)+`<div class="card"><h3>Jurnal Harian Mengajar</h3>
+<div class="g"><div><label>Kepala Sekolah</label><input readonly value="${esc(S.kepsek)} (NIP ${esc(S.kepsekNip)})"></div>
+<div><label>Guru</label><input readonly value="${esc(U.nama)} (NIP ${esc(U.nip)})"></div>
+<div><label>Tahun Ajaran / Semester</label><input readonly value="${esc(S.ta)} / ${esc(S.semester)}"></div>
+<div><label>Tanggal</label><input type="date" id="tgl" value="${today()}" onchange="$('#hr').value=hariOf(this.value)"></div>
+<div><label>Hari</label><input id="hr" readonly value="${hariOf(today())}"></div>
+<div><label>Jam Mulai</label><input type="time" id="jm"></div><div><label>Jam Selesai</label><input type="time" id="js"></div>
+<div><label>Kelas (bebas pilih, mis. guru pengganti)</label><select id="kl">${opt(kl,def)}</select></div>
+<div><label>Mata Pelajaran</label><select id="mp">${opt(M.map(m=>m.nama))}</select></div></div>
+<label>Materi Pembelajaran</label><textarea id="mt"></textarea>
+<label>Tujuan Pembelajaran <button class="s" onclick="genTP()">Generate</button></label><textarea id="tp"></textarea>
+<label>Kendala</label><textarea id="kd"></textarea><label>Tindak Lanjut</label><textarea id="tl"></textarea>
+<label>Refleksi Guru</label><textarea id="rf"></textarea><label>Paraf Guru</label><input readonly placeholder="(dikosongkan, diparaf pada cetakan)">
+<button onclick="saveJ()">Simpan Jurnal</button></div><div class="card"><h3>Jurnal Saya</h3><div class="w" id="jl"></div></div>`;loadMine()}
+function genTP(){const m=$('#mt').value.trim(),p=$('#mp').value;if(!m)return alert('Isi materi dulu');
+ $('#tp').value=`Melalui kegiatan pembelajaran, peserta didik mampu memahami, menerapkan, dan merefleksikan materi "${m}" pada mata pelajaran ${p} sesuai Capaian Pembelajaran Kurikulum Merdeka (BSKAP terbaru) untuk kelas ${$('#kl').value}. (Silakan sesuaikan dengan CP/TP resmi.)`}
+async function saveJ(){if(!$('#mt').value||!$('#jm').value)return alert('Lengkapi jam & materi');
+ await call('saveJurnal',{tgl:$('#tgl').value,hari:$('#hr').value,mulai:$('#jm').value,selesai:$('#js').value,kelas:$('#kl').value,mapel:$('#mp').value,guruId:U.id,guruNama:U.nama,nip:U.nip,materi:$('#mt').value,tujuan:$('#tp').value,kendala:$('#kd').value,tindak:$('#tl').value,refleksi:$('#rf').value,ta:S.ta,semester:S.semester});
+ alert('Jurnal tersimpan');loadMine()}
+async function loadMine(){const j=(await call('listJurnal')).filter(x=>x.guruId==U.id);$('#jl').innerHTML=jTable(j,0)}
+function jTable(j,v){return `<table><tr><th>Tanggal</th><th>Jam</th><th>Kelas</th><th>Mapel</th><th>Materi</th>${v?'<th>Guru</th>':''}<th>Status</th></tr>`+j.map(x=>`<tr><td>${x.hari}, ${x.tgl}</td><td>${x.mulai}-${x.selesai}</td><td>${esc(x.kelas)}</td><td>${esc(x.mapel)}</td><td>${esc(x.materi)}</td>${v?`<td>${esc(x.guruNama)}</td>`:''}<td class="${x.status=='Terverifikasi'?'ok':'wt'}">${x.status}${v&&x.status!='Terverifikasi'?` <button onclick="verif('${x.id}')">Verifikasi</button>`:''}</td></tr>`).join('')+'</table>'}
+
+// ---------- Kepala Sekolah ----------
+async function kepsekView(){$('#app').innerHTML=hadirBox('Kepala Sekolah',S.kepsek||'Kepala Sekolah')+`<div class="card"><h3>Pemantauan Jurnal Guru</h3><label>Filter Kelas</label><select id="fk" onchange="loadK()"><option value="">Semua</option>${opt(kelasList())}</select><div class="w" id="jl"></div></div>`;loadK()}
+async function loadK(){let j=await call('listJurnal');const k=$('#fk').value;if(k)j=j.filter(x=>x.kelas==k);$('#jl').innerHTML=jTable(j,1)}
+async function verif(id){await call('verify',id);loadK()}
+
+// ---------- Admin ----------
+function adminView(t){t=t||'s';$('#app').innerHTML=`<div class="tabs">${[['s','Data Sekolah'],['g','Data Guru'],['m','Mata Pelajaran'],['h','Rekap Kehadiran']].map(a=>`<button class="${a[0]==t?'on':''}" onclick="adminView('${a[0]}')">${a[1]}</button>`).join('')}</div><div class="card" id="ad"></div>`;({s:aS,g:aG,m:aM,h:aH})[t]()}
+function aS(){const f=(k,l,ty)=>`<div><label>${l}</label><input id="s_${k}" type="${ty||'text'}" value="${esc(S[k])}"></div>`;
+$('#ad').innerHTML=`<div class="g">${f('nama','Nama Sekolah')}${f('npsn','NPSN')}${f('alamat','Alamat')}${f('ta','Tahun Ajaran (2026/2027)')}
+<div><label>Semester</label><select id="s_semester">${opt(['Ganjil','Genap'],S.semester)}</select></div>${f('kepsek','Nama Kepala Sekolah')}${f('kepsekNip','NIP Kepala Sekolah')}
+${f('kelas','Daftar Kelas (pisah koma, mis. 1,2,3 atau X,XI,XII)')}<div><label>Logo</label><input type="file" id="s_logo" accept="image/*"></div></div><button onclick="saveS()">Simpan</button>`}
+async function saveS(){const o={};['nama','npsn','alamat','ta','semester','kepsek','kepsekNip','kelas'].forEach(k=>o[k]=$('#s_'+k).value);
+ const fl=$('#s_logo').files[0];if(fl){o.logo=await new Promise(r=>{const i=new Image;i.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,120/i.height);c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);r(c.toDataURL('image/png'))};i.src=URL.createObjectURL(fl)})}
+ await call('saveSekolah',o);Object.assign(S,o);alert('Tersimpan')}
+function aG(){$('#ad').innerHTML=`<div class="g"><div><label>Nama</label><input id="g_n"></div><div><label>NIP (username)</label><input id="g_p"></div>
+<div><label>Tugas Mengajar</label><select id="g_t">${opt(TUGAS)}</select></div><div><label>Kelas diampu (mis. 1)</label><input id="g_k"></div><div><label>Password (kosong = NIP)</label><input id="g_w"></div></div>
+<input type="hidden" id="g_i"><button onclick="saveG()">Simpan Guru</button><div class="w"><table><tr><th>Nama</th><th>NIP</th><th>Tugas</th><th>Kelas</th><th></th></tr>${G.map((g,i)=>`<tr><td>${esc(g.nama)}</td><td>${esc(g.nip)}</td><td>${g.tugas}</td><td>${esc(g.kelas)}</td><td><button class="s" onclick="editG(${i})">Edit</button><button class="d" onclick="delG('${g.id}')">Hapus</button></td></tr>`).join('')}</table></div>`}
+function editG(i){const g=G[i];$('#g_i').value=g.id;$('#g_n').value=g.nama;$('#g_p').value=g.nip;$('#g_t').value=g.tugas;$('#g_k').value=g.kelas}
+async function reloadBoot(){const b=await call('boot');G=b.guru;M=b.mapel}
+async function saveG(){await call('saveGuru',{id:$('#g_i').value,nama:$('#g_n').value,nip:$('#g_p').value,tugas:$('#g_t').value,kelas:$('#g_k').value,password:$('#g_w').value});await reloadBoot();aG()}
+async function delG(id){if(confirm('Hapus guru?')){await call('delGuru',id);await reloadBoot();aG()}}
+function aM(){$('#ad').innerHTML=`<label>Mata Pelajaran Baru</label><input id="m_n"><button onclick="saveM()">Tambah</button><table>${M.map(m=>`<tr><td>${esc(m.nama)}</td><td><button class="d" onclick="delM('${m.id}')">Hapus</button></td></tr>`).join('')}</table>`}
+async function saveM(){if(!$('#m_n').value)return;await call('saveMapel',{nama:$('#m_n').value});await reloadBoot();aM()}
+async function delM(id){await call('delMapel',id);await reloadBoot();aM()}
+let HR=[];
+async function aH(){HR=await call('listHadir');$('#ad').innerHTML=`<label>Bulan</label><input type="month" id="hb" value="${today().slice(0,7)}" onchange="drawH()"><button onclick="csvH()">Unduh CSV</button><button onclick="pdfH()">Unduh PDF</button><div class="w" id="ht"></div>`;drawH()}
+const hf=()=>HR.filter(x=>String(x.tgl).startsWith($('#hb').value)).sort((a,b)=>a.tgl<b.tgl?-1:1);
+const hRows=()=>hf().map(x=>[x.tgl,x.peran,x.nama,x.status,x.alasan,x.ket]);
+function drawH(){$('#ht').innerHTML='<table><tr><th>Tanggal</th><th>Peran</th><th>Nama</th><th>Status</th><th>Alasan</th><th>Keterangan</th></tr>'+hRows().map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')+'</table>'}
+function csvH(){const c=[['Tanggal','Peran','Nama','Status','Alasan','Keterangan'],...hRows()].map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+c],{type:'text/csv'}));a.download='rekap-kehadiran-'+$('#hb').value+'.csv';a.click()}
+function pdfH(){const w=window.open('');w.document.write(`<title>Rekap Kehadiran</title><style>body{font:12px sans-serif}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4px}</style><h3 style="text-align:center">REKAP KEHADIRAN GURU DAN KEPALA SEKOLAH<br>${esc(S.nama)} - ${$('#hb').value}</h3>`+$('#ht').innerHTML+'<script>onload=()=>print()<\/script>');w.document.close()}
+init();
+</script></body></html>
